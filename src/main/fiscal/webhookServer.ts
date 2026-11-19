@@ -1,6 +1,7 @@
 import express from 'express';
 import { BrowserWindow } from 'electron';
 import { fiscalRepo } from '../db/repositories/fiscalRepo';
+import { logger } from '../utils/logger';
 
 export function startWebhookServer(port: number) {
     const app = express();
@@ -8,6 +9,7 @@ export function startWebhookServer(port: number) {
 
     app.post('/alenfe/callback', async (req, res) => {
         const { protocolo, status, chave_acesso, xml, motivo_rejeicao, pedido_id } = req.body;
+        logger.info('fiscal.webhook.received', { protocolo, status, pedido_id });
 
         try {
             // Busca a venda pelo protocolo ou pedido_id
@@ -23,7 +25,7 @@ export function startWebhookServer(port: number) {
             }
 
             if (!venda) {
-                console.error('Webhook: venda não encontrada', { protocolo, pedido_id });
+                logger.warn('fiscal.webhook.sale_not_found', { protocolo, pedido_id });
                 return res.sendStatus(404);
             }
 
@@ -47,9 +49,10 @@ export function startWebhookServer(port: number) {
                 });
             }
 
+            logger.info('fiscal.webhook.status_updated', { pedidoId: venda.PedidoId, status, protocolo });
             res.sendStatus(200);
         } catch (error) {
-            console.error('Erro no webhook ALENFE:', error);
+            logger.error('fiscal.webhook.failed', error, { protocolo, status, pedido_id });
             res.sendStatus(500);
         }
     });
@@ -58,6 +61,6 @@ export function startWebhookServer(port: number) {
     app.get('/health', (_req, res) => res.json({ ok: true }));
 
     app.listen(port, '0.0.0.0', () => {
-        console.log(`Webhook ALENFE escutando na porta ${port}`);
+        logger.info('fiscal.webhook.listening', { port });
     });
 }
