@@ -77,7 +77,7 @@ npm run package
 
 ## Observações
 
-- O projeto depende de um banco ALESYS existente. Não há scripts de criação ou migração de esquema neste repositório; as consultas pressupõem tabelas como `Cardapio`, `Pedidos`, `ItensPedido`, `Usuarios`, `Empresa`, `Configuracoes` e `VendasNFCE`.
+- O projeto depende de um banco ALESYS existente. Não há scripts de criação ou migração de esquema neste repositório. Para as imagens, o banco deve ter a evolução de miniaturas centralizadas aplicada: `Produtos.ImagemId` e `Pratos.ImagemId` apontam para `Midias`, cuja coluna `CaminhoMiniatura` contém o caminho web servido pelo ALESYS. O PDV monta a URL usando a URL base configurada. Em instalações com imagens legadas, aplique a migração documentada em `database/migrar_miniaturas.php` no repositório ALESYS antes de remover as colunas antigas.
 - A integração fiscal usa o ALENFE e a emissão está configurada no código para o ambiente de **homologação**. O funcionamento depende das configurações e da disponibilidade desse serviço externo.
 - A tela **Pedidos Abertos** está identificada no código como em desenvolvimento. A presença de repositórios ou handlers de caixa não significa que todos esses fluxos estejam disponíveis na interface.
 - O repositório inclui uma licença GNU GPL versão 3 (`LICENSE`). Consulte o arquivo para os termos completos.
