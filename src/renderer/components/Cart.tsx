@@ -9,7 +9,7 @@ const FORMAS_PAGAMENTO = [
 ];
 
 export function Cart() {
-    const { cart, total, removeFromCart, finalizar, fiscalStatus, clear } = useOrderStore();
+    const { cart, total, removeFromCart, finalizar, fiscalStatus, paymentRecorded, clear } = useOrderStore();
     const [showPayment, setShowPayment] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -37,7 +37,7 @@ export function Cart() {
         <div className="w-96 bg-rustic-900 text-cream-50 p-6 flex flex-col">
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">Carrinho</h2>
-                {cart.length > 0 && (
+                {cart.length > 0 && !paymentRecorded && !processing && (
                     <button onClick={clear} className="text-wood-400 hover:text-red-400 text-sm">
                         Limpar
                     </button>
@@ -105,6 +105,17 @@ export function Cart() {
                             {fiscalStatus === 'processing' ? 'Finalizando pedido e enviando NFC-e...' : 'Processando...'}
                         </span>
                     </div>
+                ) : paymentRecorded && fiscalStatus === 'sent' ? (
+                    <div className="w-full py-4 rounded-xl bg-emerald-900/40 text-emerald-200 text-center text-sm border border-emerald-700">
+                        Pagamento registrado. Aguardando retorno fiscal do ALENFE.
+                    </div>
+                ) : paymentRecorded && fiscalStatus === 'rejected' ? (
+                    <button
+                        onClick={() => handleFinalizar('')}
+                        className="w-full py-4 rounded-xl bg-red-700 hover:bg-red-600 text-white font-bold"
+                    >
+                        TENTAR EMITIR NFC-e NOVAMENTE
+                    </button>
                 ) : showPayment ? (
                     <div className="grid grid-cols-2 gap-2">
                         {FORMAS_PAGAMENTO.map((fp) => (
