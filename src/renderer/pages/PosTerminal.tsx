@@ -10,7 +10,7 @@ import { FiscalStatusModal } from '../components/FiscalStatusModal';
 export function PosTerminal() {
   const { products, categories, selectedCategory, loadProducts, selectCategory, filtered } =
     useProductStore();
-  const { createOrder, currentPedidoId, addToCart, fiscalStatus, clear } = useOrderStore();
+  const { createOrder, currentPedidoId, addToCart, fiscalStatus, clear, applyFiscalCallback } = useOrderStore();
   const { user } = useAuthStore();
   const [showFiscalModal, setShowFiscalModal] = useState(false);
 
@@ -26,6 +26,7 @@ export function PosTerminal() {
   useEffect(() => {
     window.pdv.onFiscalCallback((data) => {
       if (data.status === 'AUTORIZADA') {
+        applyFiscalCallback('AUTORIZADA');
         setShowFiscalModal(true);
         setTimeout(() => {
           clear();
@@ -33,6 +34,7 @@ export function PosTerminal() {
           if (user) createOrder(user.Id);
         }, 2000);
       } else if (data.status === 'REJEITADA') {
+        applyFiscalCallback('REJEITADA', data.motivo_rejeicao);
         setShowFiscalModal(true);
       }
     });
