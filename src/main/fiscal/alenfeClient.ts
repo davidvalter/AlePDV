@@ -4,18 +4,31 @@ import { empresaRepo } from '../db/repositories/empresaRepo';
 export const alenfeClient = {
     async enviarDocumento(payload: any): Promise<{ id: number }> {
         const config = await empresaRepo.getAlenfeConfig();
-        const response = await axios.post(
-            `${config.url}/nfce/criar`,
-            payload,
-            {
-                timeout: 15000,
-                headers: {
-                    'x-api-key': config.apiKey,
-                    'Content-Type': 'application/json',
-                },
+        try {
+            const response = await axios.post(
+                `${config.url}/nfce/criar`,
+                payload,
+                {
+                    timeout: 15000,
+                    headers: {
+                        'x-api-key': config.apiKey,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+            return { id: Number(response.data.id) };
+        } catch (error: any) {
+            const status = error?.response?.status;
+            const body = error?.response?.data;
+            if (status) {
+                const detail = body?.error
+                    || body?.message
+                    || (Array.isArray(body?.errors) ? body.errors.map((item: any) => item.message || String(item)).join('; ') : '')
+                    || 'Resposta sem detalhes do servidor.';
+                throw new Error(`ALENFE respondeu HTTP ${status}: ${detail}`, { cause: error });
             }
-        );
-        return { id: Number(response.data.id) };
+            throw error;
+        }
     },
 
     async consultarStatus(nfceId: number): Promise<any> {
