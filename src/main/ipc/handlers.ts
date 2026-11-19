@@ -1,4 +1,5 @@
 import { ipcMain, shell } from 'electron';
+import { dirname } from 'path';
 import { getLogFilePath, logger } from '../utils/logger';
 import { isConfigured, getStore } from '../config/store';
 import { testConnection } from '../db/connection';
@@ -162,13 +163,14 @@ export function registerIpcHandlers() {
 
     ipcMain.handle('system:openLogFile', async () => {
         const filePath = getLogFilePath();
-        logger.info('logs.open_requested');
-        const error = await shell.openPath(filePath);
+        const directory = dirname(filePath);
+        logger.info('logs.open_requested', { filePath });
+        const error = await shell.openPath(directory);
         if (error) {
-            logger.error('logs.open_failed', new Error(error));
-            return { success: false, error };
+            logger.error('logs.open_failed', new Error(error), { filePath, directory });
+            return { success: false, path: filePath, error };
         }
-        return { success: true };
+        return { success: true, path: filePath };
     });
 
     ipcMain.handle('db:getOpenOrders', async () => {
