@@ -1,8 +1,9 @@
-export function ProductCard({ product, onAdd }: { product: any; onAdd: (p: any) => void }) {
+export function ProductCard({ product, onAdd, disabled = false }: { product: any; onAdd: (p: any) => void; disabled?: boolean }) {
     return (
         <div
-            onClick={() => onAdd(product)}
-            className="bg-white p-4 rounded-2xl shadow-sm border border-snow-200 transition-all hover:shadow-md hover:border-emerald-400 group cursor-pointer"
+            onClick={() => { if (!disabled) onAdd(product); }}
+            aria-disabled={disabled}
+            className={`bg-white p-4 rounded-2xl shadow-sm border border-snow-200 transition-all group ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-md hover:border-emerald-400 cursor-pointer'}`}
         >
             <div className="aspect-square bg-snow-100 rounded-xl mb-3 overflow-hidden flex items-center justify-center p-2">
                 {product.Imagem ? (
