@@ -39,34 +39,28 @@ export function registerIpcHandlers() {
         }
     });
 
-    // ── Cardápio (com cache de imagens) ──
+    // ── Cardápio (com cache de miniaturas) ──
     ipcMain.handle('db:getProducts', async () => {
         try {
             const products = await cardapioRepo.getAtivos();
-            const alesysUrl = (getStore().get('alesys_url', '') as string).replace(/\/$/, '');
+            const alesysUrl = (getStore().get('alesys_url', '') as string).replace(/\\/$/, '');
 
             const data = products.map((p: any) => {
-                let imagemUrl = null;
+                const imagePath = typeof p.Imagem === 'string' ? p.Imagem.trim() : '';
+                let imagemUrl: string | null = null;
 
-                // 1. Monta a URL completa da imagem
-                if (p.Imagem) {
-                    if (p.Imagem.startsWith('http')) {
-                        imagemUrl = p.Imagem;
-                    } else if (alesysUrl) {
-                        imagemUrl = p.Imagem.startsWith('/')
-                            ? `${alesysUrl}${p.Imagem}`
-                            : `${alesysUrl}/uploads/cardapio/${p.Imagem}`;
-                    }
+                // CaminhoMiniatura é armazenado como caminho web, ex.: /uploads/pratos/miniaturas/...
+                if (/^https?:\\/\\//i.test(imagePath)) {
+                    imagemUrl = imagePath;
+                } else if (imagePath && alesysUrl) {
+                    imagemUrl = `${alesysUrl}${imagePath.startsWith('/') ? imagePath : `/${imagePath}`}`;
                 }
 
-                // 2. Verifica se já está em cache local
                 if (imagemUrl) {
                     const cached = getCachedImage(imagemUrl);
                     if (cached) {
-                        // Imagem em cache — usa data URL local (instantâneo)
                         imagemUrl = cached;
                     } else {
-                        // Não está em cache — baixa em background para a próxima vez
                         cacheImageInBackground(imagemUrl).catch(() => { });
                     }
                 }
