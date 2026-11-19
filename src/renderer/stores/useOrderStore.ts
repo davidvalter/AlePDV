@@ -52,8 +52,8 @@ export const useOrderStore = create<OrderState>((set, get) => ({
   },
 
   addToCart: async (product) => {
-    const { currentPedidoId, cart } = get();
-    if (!currentPedidoId) return;
+    const { currentPedidoId, cart, paymentRecorded } = get();
+    if (!currentPedidoId || paymentRecorded) return;
     const result = await window.pdv.addItem({
       pedidoId: currentPedidoId,
       cardapioId: product.Id,
@@ -69,8 +69,8 @@ export const useOrderStore = create<OrderState>((set, get) => ({
   },
 
   removeFromCart: async (itemId) => {
-    const { currentPedidoId, cart } = get();
-    if (!currentPedidoId) return;
+    const { currentPedidoId, cart, paymentRecorded } = get();
+    if (!currentPedidoId || paymentRecorded) return;
     await window.pdv.removeItem(itemId, currentPedidoId);
     const newCart = cart.filter((i) => i.itemId !== itemId);
     set({
