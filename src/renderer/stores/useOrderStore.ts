@@ -8,6 +8,7 @@ interface OrderState {
   mesa: string | null;
   fiscalStatus: 'idle' | 'processing' | 'sent' | 'authorized' | 'rejected';
   paymentRecorded: boolean;
+  customerDocument: string | null;
   finalizeError: string | null;
   applyFiscalCallback: (status: 'AUTORIZADA' | 'REJEITADA', reason?: string) => void;
   setTipo: (tipo: 'mesa' | 'balcao' | 'delivery') => void;
@@ -16,9 +17,9 @@ interface OrderState {
   addToCart: (product: any) => Promise<void>;
   removeFromCart: (itemId: number) => Promise<void>;
   loadCart: () => Promise<void>;
-  finalizar: (formaPagamento: string) => Promise<{
+  finalizar: (formaPagamento: string, clienteDocumento?: string) => Promise<{
     success: boolean;
-    protocolo?: string;
+    alenfeId?: number;
     message?: string;
     error?: string;
   }>;
@@ -33,6 +34,7 @@ export const useOrderStore = create<OrderState>((set, get) => ({
   mesa: null,
   fiscalStatus: 'idle',
   paymentRecorded: false,
+  customerDocument: null,
   finalizeError: null,
 
   applyFiscalCallback: (status, reason) => set({
@@ -91,13 +93,14 @@ export const useOrderStore = create<OrderState>((set, get) => ({
     }
   },
 
-  finalizar: async (formaPagamento) => {
+  finalizar: async (formaPagamento, clienteDocumento) => {
     const { currentPedidoId } = get();
     if (!currentPedidoId) {
       return { success: false, error: 'Não há um pedido ativo para finalizar.' };
     }
 
-    set({ fiscalStatus: 'processing', finalizeError: null });
+    const documento = clienteDocumento ?? get().customerDocument ?? undefined;
+    set({ fiscalStatus: 'processing', finalizeError: null, customerDocument: documento || null });
     let paymentRecorded = get().paymentRecorded;
 
     try {
@@ -110,7 +113,7 @@ export const useOrderStore = create<OrderState>((set, get) => ({
         set({ paymentRecorded: true });
       }
 
-      const fiscalResult = await window.pdv.emitDocument(currentPedidoId);
+      const fiscalResult = await window.pdv.emitDocument(currentPedidoId, documento);
       if (!fiscalResult.success) {
         const fiscalError = fiscalResult.error || 'O serviço fiscal não aceitou a solicitação.';
         const errorMessage = `Pagamento registrado, mas a emissão da NFC-e falhou: ${fiscalError}`;
@@ -124,7 +127,7 @@ export const useOrderStore = create<OrderState>((set, get) => ({
       set({ fiscalStatus: 'sent', finalizeError: null });
       return {
         success: true,
-        protocolo: fiscalResult.protocolo,
+        alenfeId: fiscalResult.alenfeId,
         message: 'Pagamento registrado e solicitação da NFC-e enviada. Aguardando retorno fiscal.',
       };
     } catch (error: any) {
@@ -147,6 +150,7 @@ export const useOrderStore = create<OrderState>((set, get) => ({
       total: 0,
       fiscalStatus: 'idle',
       paymentRecorded: false,
+      customerDocument: null,
       finalizeError: null,
       mesa: null,
     }),
