@@ -137,7 +137,7 @@ export function Setup({ onBack }: { onBack: () => void }) {
                 placeholder="https://alesys.alecriminteligente.com.br"
               />
               <p className="text-charcoal-400 text-xs mt-1.5">
-                As imagens dos produtos serão carregadas de <code className="text-emerald-600">{config.alesysUrl || '...'}/uploads/cardapio/</code>
+                As miniaturas são servidas pelo ALESYS em <code className="text-emerald-600">/uploads/produtos/miniaturas/</code> e <code className="text-emerald-600">/uploads/pratos/miniaturas/</code>.
               </p>
             </div>
           </div>
