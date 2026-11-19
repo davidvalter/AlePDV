@@ -16,9 +16,9 @@ export const empresaRepo = {
     return (rows as any[])[0]?.Valor ?? null;
   },
 
-  async getAlenfeConfig(): Promise<{ url: string; apiKey: string }> {
+  async getAlenfeConfig(): Promise<{ url: string; apiKey: string; ambiente: string | null }> {
     const [rows] = await getPool().execute(
-      `SELECT Chave, Valor FROM Configuracoes WHERE LOWER(Chave) IN ('alenfe_url', 'alenfe_api_key')`
+      `SELECT Chave, Valor FROM Configuracoes WHERE LOWER(Chave) IN ('alenfe_url', 'alenfe_api_key', 'alenfe_ambiente')`
     );
     const config: Record<string, string> = {};
     (rows as any[]).forEach((r) => {
@@ -27,8 +27,9 @@ export const empresaRepo = {
       if (chave && valor) config[chave] = valor;
     });
     return {
-      url: config.alenfe_url || 'http://localhost:3001',
+      url: (config.alenfe_url || 'http://localhost:3001').replace(/\/+$/, ''),
       apiKey: config.alenfe_api_key || '',
+      ambiente: config.alenfe_ambiente || null,
     };
   },
 };
