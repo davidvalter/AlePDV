@@ -50,9 +50,12 @@ export function Dashboard({ onReconfig }: { onReconfig: () => void }) {
         <button
           onClick={async () => {
             const result = await window.pdv.openLogFile();
+            const fileLocation = result.path ? `\\n\\nArquivo: ${result.path}` : '';
             if (!result.success) {
-              window.alert(result.error || 'Não foi possível abrir o arquivo de log.');
+              window.alert(`Não foi possível abrir a pasta do log. ${result.error || ''}${fileLocation}`);
+              return;
             }
+            window.alert(`Pasta do log aberta.${fileLocation}`);
           }}
           className="w-12 h-12 rounded-xl flex items-center justify-center text-xl text-emerald-500 hover:bg-emerald-900 hover:text-emerald-300 transition-all"
           title="Abrir log para diagnóstico"
