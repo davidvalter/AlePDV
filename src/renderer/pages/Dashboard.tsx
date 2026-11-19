@@ -47,6 +47,20 @@ export function Dashboard({ onReconfig }: { onReconfig: () => void }) {
           ⚙️
         </button>
 
+        <button
+          onClick={async () => {
+            const result = await window.pdv.openLogFile();
+            if (!result.success) {
+              window.alert(result.error || 'Não foi possível abrir o arquivo de log.');
+            }
+          }}
+          className="w-12 h-12 rounded-xl flex items-center justify-center text-xl text-emerald-500 hover:bg-emerald-900 hover:text-emerald-300 transition-all"
+          title="Abrir log para diagnóstico"
+          aria-label="Abrir log para diagnóstico"
+        >
+          📄
+        </button>
+
         {/* Info do operador */}
         <div className="text-emerald-300 text-[10px] text-center px-1 leading-tight">
           {user?.NomeCompleto?.split(' ')[0] ?? 'Operador'}
