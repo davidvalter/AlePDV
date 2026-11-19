@@ -80,9 +80,21 @@ export const pedidoRepo = {
 
   async getItens(pedidoId: number): Promise<any[]> {
     const [rows] = await getPool().execute(
-      `SELECT ip.*, c.Nome as CardapioNome, c.Imagem as CardapioImagem, c.PrecoVenda
+      `SELECT
+         ip.*,
+         c.Nome AS CardapioNome,
+         c.PrecoVenda,
+         COALESCE(p.NCM, pr.NCM) AS NCM,
+         COALESCE(p.CFOP, pr.CFOP) AS CFOP,
+         COALESCE(p.CSOSN, pr.CSOSN) AS CSOSN,
+         COALESCE(p.CEST, pr.CEST) AS CEST,
+         COALESCE(p.UnidadeMedida, pr.UnidadeMedida, 'UN') AS UnidadeMedida
        FROM ItensPedido ip
        LEFT JOIN Cardapio c ON ip.CardapioId = c.Id
+       LEFT JOIN Produtos p
+         ON c.TipoItem = 'produto' AND c.ProdutoId = p.Codigo
+       LEFT JOIN Pratos pr
+         ON c.TipoItem = 'prato' AND c.PratoId = pr.Id
        WHERE ip.PedidoId = ? AND ip.Status != 'cancelado'
        ORDER BY ip.Id`,
       [pedidoId]
