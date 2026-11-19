@@ -1,15 +1,46 @@
+export interface ApiResult<T = undefined> {
+    success: boolean;
+    data?: T;
+    error?: string;
+}
+
 export interface PdvApi {
-    login: (username: string, senha: string) => Promise<{ success: boolean; user?: any; error?: string }>;
-    logout: () => Promise<void>;
+    // Configuração
     checkConfig: () => Promise<boolean>;
-    getProducts: () => Promise<any[]>;
-    getCategories: () => Promise<string[]>;
-    createOrder: (data: any) => Promise<{ success: boolean; data?: number; error?: string }>;
-    addItem: (data: any) => Promise<{ success: boolean; data?: number; error?: string }>;
-    getOrderItens: (pedidoId: number) => Promise<any[]>;
-    closeOrder: (pedidoId: number, formaPagamentoId: number) => Promise<{ success: boolean; error?: string }>;
-    emitDocument: (pedidoId: number) => Promise<{ success: boolean; error?: string }>;
-    onFiscalCallback: (callback: (data: any) => void) => void;
-    printCupom: (pedidoId: number) => Promise<{ success: boolean; error?: string }>;
+    saveConfig: (config: any) => Promise<boolean>;
+    testConnection: () => Promise<boolean>;
     openLogFile: () => Promise<{ success: boolean; error?: string }>;
+
+    // Autenticação
+    login: (username: string, senha: string) => Promise<{ success: boolean; user?: any; error?: string }>;
+
+    // Cardápio
+    getProducts: () => Promise<ApiResult<any[]>>;
+    getCategories: () => Promise<ApiResult<string[]>>;
+
+    // Pedidos
+    createOrder: (data: any) => Promise<ApiResult<number>>;
+    addItem: (data: any) => Promise<ApiResult<number>>;
+    removeItem: (itemId: number, pedidoId: number) => Promise<ApiResult>;
+    getOrderItens: (pedidoId: number) => Promise<ApiResult<any[]>>;
+    closeOrder: (pedidoId: number, formaPagamento: string) => Promise<ApiResult>;
+    getOpenOrders: () => Promise<ApiResult<any[]>>;
+
+    // Fiscal
+    emitDocument: (pedidoId: number) => Promise<{
+        success: boolean;
+        protocolo?: string;
+        error?: string;
+    }>;
+    onFiscalCallback: (callback: (data: any) => void) => void;
+
+    // Impressão
+    printCupom: (pedidoId: number) => Promise<{ success: boolean; error?: string }>;
+
+    // Caixa
+    openCash: (responsavelId: number) => Promise<ApiResult<number>>;
+    getOpenCash: () => Promise<ApiResult<any>>;
+
+    // Empresa
+    getEmpresa: () => Promise<ApiResult<any>>;
 }
