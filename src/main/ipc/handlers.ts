@@ -43,14 +43,17 @@ export function registerIpcHandlers() {
     ipcMain.handle('db:getProducts', async () => {
         try {
             const products = await cardapioRepo.getAtivos();
-            const alesysUrl = (getStore().get('alesys_url', '') as string).replace(/\\/$/, '');
+            let alesysUrl = (getStore().get('alesys_url', '') as string).trim();
+            while (alesysUrl.endsWith('/')) {
+                alesysUrl = alesysUrl.slice(0, -1);
+            }
 
             const data = products.map((p: any) => {
                 const imagePath = typeof p.Imagem === 'string' ? p.Imagem.trim() : '';
                 let imagemUrl: string | null = null;
 
                 // CaminhoMiniatura é armazenado como caminho web, ex.: /uploads/pratos/miniaturas/...
-                if (/^https?:\\/\\//i.test(imagePath)) {
+                if (imagePath.startsWith('https://') || imagePath.startsWith('http://')) {
                     imagemUrl = imagePath;
                 } else if (imagePath && alesysUrl) {
                     imagemUrl = `${alesysUrl}${imagePath.startsWith('/') ? imagePath : `/${imagePath}`}`;
