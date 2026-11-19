@@ -10,7 +10,7 @@ import { FiscalStatusModal } from '../components/FiscalStatusModal';
 export function PosTerminal() {
   const { products, categories, selectedCategory, loadProducts, selectCategory, filtered } =
     useProductStore();
-  const { createOrder, currentPedidoId, addToCart, fiscalStatus, clear, applyFiscalCallback } = useOrderStore();
+  const { createOrder, currentPedidoId, addToCart, fiscalStatus, clear, applyFiscalCallback, paymentRecorded } = useOrderStore();
   const { user } = useAuthStore();
   const [showFiscalModal, setShowFiscalModal] = useState(false);
 
@@ -62,7 +62,7 @@ export function PosTerminal() {
           ) : (
             <div className="grid grid-cols-3 lg:grid-cols-4 gap-4">
               {filtered().map((product) => (
-                <ProductCard key={product.Id} product={product} onAdd={handleAddToCart} />
+                <ProductCard key={product.Id} product={product} onAdd={handleAddToCart} disabled={paymentRecorded} />
               ))}
             </div>
           )}
