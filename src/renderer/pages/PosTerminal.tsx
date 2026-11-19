@@ -36,6 +36,7 @@ export function PosTerminal() {
       } else if (data.status === 'REJEITADA') {
         applyFiscalCallback('REJEITADA', data.motivo_rejeicao);
         setShowFiscalModal(true);
+        setTimeout(() => setShowFiscalModal(false), 3000);
       }
     });
   }, []);
