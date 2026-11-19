@@ -8,6 +8,8 @@ interface OrderState {
   mesa: string | null;
   fiscalStatus: 'idle' | 'processing' | 'sent' | 'authorized' | 'rejected';
   paymentRecorded: boolean;
+  finalizeError: string | null;
+  applyFiscalCallback: (status: 'AUTORIZADA' | 'REJEITADA', reason?: string) => void;
   setTipo: (tipo: 'mesa' | 'balcao' | 'delivery') => void;
   setMesa: (mesa: string | null) => void;
   createOrder: (responsavelId: number) => Promise<void>;
@@ -31,6 +33,12 @@ export const useOrderStore = create<OrderState>((set, get) => ({
   mesa: null,
   fiscalStatus: 'idle',
   paymentRecorded: false,
+  finalizeError: null,
+
+  applyFiscalCallback: (status, reason) => set({
+    fiscalStatus: status === 'AUTORIZADA' ? 'authorized' : 'rejected',
+    finalizeError: status === 'REJEITADA' ? (reason || 'NFC-e rejeitada pelo serviço fiscal. Consulte o log para detalhes.') : null,
+  }),
 
   setTipo: (tipo) => set({ tipo }),
   setMesa: (mesa) => set({ mesa }),
@@ -89,7 +97,7 @@ export const useOrderStore = create<OrderState>((set, get) => ({
       return { success: false, error: 'Não há um pedido ativo para finalizar.' };
     }
 
-    set({ fiscalStatus: 'processing' });
+    set({ fiscalStatus: 'processing', finalizeError: null });
     let paymentRecorded = get().paymentRecorded;
 
     try {
@@ -105,27 +113,29 @@ export const useOrderStore = create<OrderState>((set, get) => ({
       const fiscalResult = await window.pdv.emitDocument(currentPedidoId);
       if (!fiscalResult.success) {
         const fiscalError = fiscalResult.error || 'O serviço fiscal não aceitou a solicitação.';
-        set({ fiscalStatus: 'rejected' });
+        const errorMessage = `Pagamento registrado, mas a emissão da NFC-e falhou: ${fiscalError}`;
+        set({ fiscalStatus: 'rejected', finalizeError: errorMessage });
         return {
           success: false,
-          error: `Pagamento registrado, mas a emissão da NFC-e falhou: ${fiscalError}`,
+          error: errorMessage,
         };
       }
 
-      set({ fiscalStatus: 'sent' });
+      set({ fiscalStatus: 'sent', finalizeError: null });
       return {
         success: true,
         protocolo: fiscalResult.protocolo,
         message: 'Pagamento registrado e solicitação da NFC-e enviada. Aguardando retorno fiscal.',
       };
     } catch (error: any) {
-      set({ fiscalStatus: 'rejected' });
       const message = error?.message || 'Erro inesperado ao finalizar o pedido.';
+      const errorMessage = paymentRecorded
+        ? `Pagamento registrado, mas ocorreu uma falha na emissão fiscal: ${message}`
+        : `Não foi possível registrar o pagamento: ${message}`;
+      set({ fiscalStatus: 'rejected', finalizeError: errorMessage });
       return {
         success: false,
-        error: paymentRecorded
-          ? `Pagamento registrado, mas ocorreu uma falha na emissão fiscal: ${message}`
-          : `Não foi possível registrar o pagamento: ${message}`,
+        error: errorMessage,
       };
     }
   },
@@ -137,6 +147,7 @@ export const useOrderStore = create<OrderState>((set, get) => ({
       total: 0,
       fiscalStatus: 'idle',
       paymentRecorded: false,
+      finalizeError: null,
       mesa: null,
     }),
 }));
