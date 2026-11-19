@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useOrderStore } from '../stores/useOrderStore';
 
 const FORMAS_PAGAMENTO = [
@@ -9,10 +9,14 @@ const FORMAS_PAGAMENTO = [
 ];
 
 export function Cart() {
-    const { cart, total, removeFromCart, finalizar, fiscalStatus, paymentRecorded, clear } = useOrderStore();
+    const { cart, total, removeFromCart, finalizar, fiscalStatus, paymentRecorded, finalizeError, currentPedidoId, clear } = useOrderStore();
     const [showPayment, setShowPayment] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+    useEffect(() => {
+        setFeedback(null);
+    }, [currentPedidoId]);
 
     const handleFinalizar = async (forma: string) => {
         setProcessing(true);
@@ -86,15 +90,15 @@ export function Cart() {
                     <span className="text-olive-400">R$ {total.toFixed(2)}</span>
                 </div>
 
-                {feedback && (
+                {(feedback || finalizeError) && (
                     <div
-                        role={feedback.type === 'error' ? 'alert' : 'status'}
+                        role={finalizeError || feedback?.type === 'error' ? 'alert' : 'status'}
                         aria-live="polite"
-                        className={`mb-3 rounded-xl px-4 py-3 text-sm ${feedback.type === 'error'
+                        className={`mb-3 rounded-xl px-4 py-3 text-sm ${finalizeError || feedback?.type === 'error'
                             ? 'bg-red-900/40 text-red-200 border border-red-700'
                             : 'bg-emerald-900/40 text-emerald-200 border border-emerald-700'}`}
                     >
-                        {feedback.message}
+                        {finalizeError || feedback?.message}
                     </div>
                 )}
 
