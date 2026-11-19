@@ -50,7 +50,7 @@ export function Dashboard({ onReconfig }: { onReconfig: () => void }) {
         <button
           onClick={async () => {
             const result = await window.pdv.openLogFile();
-            const fileLocation = result.path ? `\\n\\nArquivo: ${result.path}` : '';
+            const fileLocation = result.path ? `\n\nArquivo: ${result.path}` : '';
             if (!result.success) {
               window.alert(`Não foi possível abrir a pasta do log. ${result.error || ''}${fileLocation}`);
               return;
