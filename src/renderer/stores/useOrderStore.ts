@@ -6,14 +6,20 @@ interface OrderState {
   total: number;
   tipo: 'mesa' | 'balcao' | 'delivery';
   mesa: string | null;
-  fiscalStatus: 'idle' | 'processing' | 'authorized' | 'rejected';
+  fiscalStatus: 'idle' | 'processing' | 'sent' | 'authorized' | 'rejected';
+  paymentRecorded: boolean;
   setTipo: (tipo: 'mesa' | 'balcao' | 'delivery') => void;
   setMesa: (mesa: string | null) => void;
   createOrder: (responsavelId: number) => Promise<void>;
   addToCart: (product: any) => Promise<void>;
   removeFromCart: (itemId: number) => Promise<void>;
   loadCart: () => Promise<void>;
-  finalizar: (formaPagamento: string) => Promise<{ success: boolean; protocolo?: string }>;
+  finalizar: (formaPagamento: string) => Promise<{
+    success: boolean;
+    protocolo?: string;
+    message?: string;
+    error?: string;
+  }>;
   clear: () => void;
 }
 
@@ -24,6 +30,7 @@ export const useOrderStore = create<OrderState>((set, get) => ({
   tipo: 'balcao',
   mesa: null,
   fiscalStatus: 'idle',
+  paymentRecorded: false,
 
   setTipo: (tipo) => set({ tipo }),
   setMesa: (mesa) => set({ mesa }),
@@ -31,7 +38,9 @@ export const useOrderStore = create<OrderState>((set, get) => ({
   createOrder: async (responsavelId) => {
     const { tipo, mesa } = get();
     const result = await window.pdv.createOrder({ tipo, mesa, responsavelId, cliente: null });
-    if (result.success) set({ currentPedidoId: result.data });
+    if (result.success) {
+      set({ currentPedidoId: result.data, paymentRecorded: false, fiscalStatus: 'idle' });
+    }
   },
 
   addToCart: async (product) => {
@@ -76,18 +85,49 @@ export const useOrderStore = create<OrderState>((set, get) => ({
 
   finalizar: async (formaPagamento) => {
     const { currentPedidoId } = get();
-    if (!currentPedidoId) return { success: false };
-    set({ fiscalStatus: 'processing' });
-
-    await window.pdv.closeOrder(currentPedidoId, formaPagamento);
-    const fiscalResult = await window.pdv.emitDocument(currentPedidoId);
-
-    if (fiscalResult.success) {
-      set({ fiscalStatus: 'authorized' });
-      return { success: true, protocolo: fiscalResult.protocolo };
+    if (!currentPedidoId) {
+      return { success: false, error: 'Não há um pedido ativo para finalizar.' };
     }
-    set({ fiscalStatus: 'rejected' });
-    return { success: false };
+
+    set({ fiscalStatus: 'processing' });
+    let paymentRecorded = get().paymentRecorded;
+
+    try {
+      if (!paymentRecorded) {
+        const paymentResult = await window.pdv.closeOrder(currentPedidoId, formaPagamento);
+        if (!paymentResult.success) {
+          throw new Error(paymentResult.error || 'Não foi possível registrar o pagamento.');
+        }
+        paymentRecorded = true;
+        set({ paymentRecorded: true });
+      }
+
+      const fiscalResult = await window.pdv.emitDocument(currentPedidoId);
+      if (!fiscalResult.success) {
+        const fiscalError = fiscalResult.error || 'O serviço fiscal não aceitou a solicitação.';
+        set({ fiscalStatus: 'rejected' });
+        return {
+          success: false,
+          error: `Pagamento registrado, mas a emissão da NFC-e falhou: ${fiscalError}`,
+        };
+      }
+
+      set({ fiscalStatus: 'sent' });
+      return {
+        success: true,
+        protocolo: fiscalResult.protocolo,
+        message: 'Pagamento registrado e solicitação da NFC-e enviada. Aguardando retorno fiscal.',
+      };
+    } catch (error: any) {
+      set({ fiscalStatus: 'rejected' });
+      const message = error?.message || 'Erro inesperado ao finalizar o pedido.';
+      return {
+        success: false,
+        error: paymentRecorded
+          ? `Pagamento registrado, mas ocorreu uma falha na emissão fiscal: ${message}`
+          : `Não foi possível registrar o pagamento: ${message}`,
+      };
+    }
   },
 
   clear: () =>
@@ -96,6 +136,7 @@ export const useOrderStore = create<OrderState>((set, get) => ({
       cart: [],
       total: 0,
       fiscalStatus: 'idle',
+      paymentRecorded: false,
       mesa: null,
     }),
 }));
