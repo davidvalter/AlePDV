@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('pdv', {
     checkConfig: () => ipcRenderer.invoke('config:check'),
     saveConfig: (config: any) => ipcRenderer.invoke('config:save', config),
     testConnection: () => ipcRenderer.invoke('config:testConnection'),
+    openLogFile: () => ipcRenderer.invoke('system:openLogFile'),
 
     // Auth
     login: (username: string, senha: string) =>
