@@ -13,17 +13,53 @@ export function Cart() {
     const [showPayment, setShowPayment] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const [ambiente, setAmbiente] = useState<number | null>(null);
+    const [ambienteErro, setAmbienteErro] = useState<string | null>(null);
+    const [documentoCliente, setDocumentoCliente] = useState('');
+
+    useEffect(() => {
+        let active = true;
+        window.pdv.getFiscalEnvironment().then((result: any) => {
+            if (!active) return;
+            const value = Number(result?.ambiente);
+            if (!result?.success || (value !== 1 && value !== 2)) {
+                setAmbiente(null);
+                setAmbienteErro(result?.error || 'Configure ALENFE_AMBIENTE como 1 (Produção) ou 2 (Homologação) no ALESYS.');
+                return;
+            }
+            setAmbiente(value);
+            setAmbienteErro(null);
+        }).catch((error: any) => {
+            if (!active) return;
+            setAmbiente(null);
+            setAmbienteErro(error?.message || 'Não foi possível consultar ALENFE_AMBIENTE no ALESYS.');
+        });
+        return () => { active = false; };
+    }, []);
 
     useEffect(() => {
         setFeedback(null);
+        setDocumentoCliente('');
     }, [currentPedidoId]);
 
+    const documentoNumerico = documentoCliente.replace(/\D/g, '');
+    const documentoValido = documentoNumerico.length === 11 || documentoNumerico.length === 14;
+
     const handleFinalizar = async (forma: string) => {
+        if (ambiente === 2 && !documentoValido) {
+            setFeedback({ type: 'error', message: 'Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) para emitir em Homologação.' });
+            return;
+        }
+        if (ambiente !== 1 && ambiente !== 2) {
+            setFeedback({ type: 'error', message: ambienteErro || 'Ambiente fiscal não configurado.' });
+            return;
+        }
+
         setProcessing(true);
         setShowPayment(false);
         setFeedback(null);
         try {
-            const result = await finalizar(forma);
+            const result = await finalizar(forma, ambiente === 2 ? documentoNumerico : undefined);
             setFeedback(result.success
                 ? { type: 'success', message: result.message || 'Pedido enviado para emissão fiscal.' }
                 : { type: 'error', message: result.error || 'Não foi possível finalizar o pedido.' });
@@ -36,6 +72,11 @@ export function Cart() {
             setProcessing(false);
         }
     };
+
+    const pagamentoBloqueado = processing
+        || ambienteErro !== null
+        || ambiente === null
+        || (ambiente === 2 && !documentoValido);
 
     return (
         <div className="w-96 bg-rustic-900 text-cream-50 p-6 flex flex-col">
@@ -83,7 +124,6 @@ export function Cart() {
                 )}
             </div>
 
-            {/* Total e finalização */}
             <div className="border-t border-rustic-700 pt-4 mt-4">
                 <div className="flex justify-between text-2xl font-bold mb-4">
                     <span>Total</span>
@@ -125,23 +165,50 @@ export function Cart() {
                         TENTAR EMITIR NFC-e NOVAMENTE
                     </button>
                 ) : showPayment ? (
-                    <div className="grid grid-cols-2 gap-2">
-                        {FORMAS_PAGAMENTO.map((fp) => (
+                    <div>
+                        <p className="mb-2 text-xs text-wood-300">
+                            Ambiente fiscal: <strong>{ambiente === 1 ? 'Produção' : ambiente === 2 ? 'Homologação' : 'indisponível'}</strong>
+                        </p>
+                        {ambiente === 2 && (
+                            <div className="mb-3">
+                                <label htmlFor="documento-cliente" className="block text-xs font-semibold mb-1.5">
+                                    CPF ou CNPJ do consumidor
+                                </label>
+                                <input
+                                    id="documento-cliente"
+                                    inputMode="numeric"
+                                    autoComplete="off"
+                                    maxLength={18}
+                                    value={documentoCliente}
+                                    onChange={(event) => setDocumentoCliente(event.target.value.replace(/[^\d.\-/]/g, ''))}
+                                    placeholder="Digite o CPF ou CNPJ"
+                                    className="w-full px-3 py-2 rounded-lg bg-rustic-800 border border-rustic-700 text-cream-50 placeholder:text-wood-500 focus:outline-none focus:border-olive-400"
+                                />
+                                <p className="mt-1 text-xs text-wood-400">Homologação exige CPF (11 dígitos) ou CNPJ (14 dígitos).</p>
+                            </div>
+                        )}
+                        {ambienteErro && (
+                            <p className="mb-3 text-xs text-red-300">{ambienteErro}</p>
+                        )}
+                        <div className="grid grid-cols-2 gap-2">
+                            {FORMAS_PAGAMENTO.map((fp) => (
+                                <button
+                                    key={fp.id}
+                                    disabled={pagamentoBloqueado}
+                                    onClick={() => handleFinalizar(fp.id)}
+                                    className="flex flex-col items-center gap-1 py-3 rounded-xl bg-rustic-800 hover:bg-rustic-700 text-cream-50 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    <span className="text-xl">{fp.icon}</span>
+                                    {fp.label}
+                                </button>
+                            ))}
                             <button
-                                key={fp.id}
-                                onClick={() => handleFinalizar(fp.id)}
-                                className="flex flex-col items-center gap-1 py-3 rounded-xl bg-rustic-800 hover:bg-rustic-700 text-cream-50 text-sm font-semibold"
+                                onClick={() => setShowPayment(false)}
+                                className="col-span-2 py-2 rounded-xl text-wood-400 text-sm hover:text-cream-50"
                             >
-                                <span className="text-xl">{fp.icon}</span>
-                                {fp.label}
+                                Cancelar
                             </button>
-                        ))}
-                        <button
-                            onClick={() => setShowPayment(false)}
-                            className="col-span-2 py-2 rounded-xl text-wood-400 text-sm hover:text-cream-50"
-                        >
-                            Cancelar
-                        </button>
+                        </div>
                     </div>
                 ) : (
                     <button
