@@ -23,7 +23,13 @@ export const alenfeClient = {
             if (status) {
                 const detail = body?.error
                     || body?.message
-                    || (Array.isArray(body?.errors) ? body.errors.map((item: any) => item.message || String(item)).join('; ') : '')
+                    || (Array.isArray(body?.errors)
+                        ? body.errors.map((item: any) => {
+                            const path = item?.path || item?.instancePath || item?.schemaPath;
+                            const message = item?.message || String(item);
+                            return path ? `${path}: ${message}` : message;
+                        }).join('; ')
+                        : '')
                     || 'Resposta sem detalhes do servidor.';
                 throw new Error(`ALENFE respondeu HTTP ${status}: ${detail}`, { cause: error });
             }
