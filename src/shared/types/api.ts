@@ -9,7 +9,7 @@ export interface PdvApi {
     checkConfig: () => Promise<boolean>;
     saveConfig: (config: any) => Promise<boolean>;
     testConnection: () => Promise<boolean>;
-    openLogFile: () => Promise<{ success: boolean; error?: string }>;
+    openLogFile: () => Promise<{ success: boolean; path: string; error?: string }>;
 
     // Autenticação
     login: (username: string, senha: string) => Promise<{ success: boolean; user?: any; error?: string }>;
