@@ -2,10 +2,10 @@ import axios from 'axios';
 import { empresaRepo } from '../db/repositories/empresaRepo';
 
 export const alenfeClient = {
-    async enviarDocumento(payload: any): Promise<{ protocolo: string }> {
+    async enviarDocumento(payload: any): Promise<{ id: number }> {
         const config = await empresaRepo.getAlenfeConfig();
         const response = await axios.post(
-            `${config.url}/api/documento`,
+            `${config.url}/nfce/criar`,
             payload,
             {
                 timeout: 15000,
@@ -15,13 +15,13 @@ export const alenfeClient = {
                 },
             }
         );
-        return { protocolo: response.data.protocolo };
+        return { id: Number(response.data.id) };
     },
 
-    async consultarStatus(protocolo: string): Promise<any> {
+    async consultarStatus(nfceId: number): Promise<any> {
         const config = await empresaRepo.getAlenfeConfig();
         const { data } = await axios.get(
-            `${config.url}/api/documento/${protocolo}`,
+            `${config.url}/nfce/${nfceId}/consulta`,
             {
                 timeout: 10000,
                 headers: { 'x-api-key': config.apiKey },
