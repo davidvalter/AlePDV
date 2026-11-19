@@ -9,7 +9,14 @@ export function startWebhookServer(port: number) {
 
     app.post('/alenfe/callback', async (req, res) => {
         const { protocolo, status, chave_acesso, xml, motivo_rejeicao, pedido_id } = req.body;
-        logger.info('fiscal.webhook.received', { protocolo, status, pedido_id });
+        logger.info('fiscal.webhook.received', {
+            protocolo,
+            status,
+            pedido_id,
+            rejectionReason: status === 'REJEITADA' && typeof motivo_rejeicao === 'string'
+                ? motivo_rejeicao.slice(0, 500)
+                : undefined,
+        });
 
         try {
             // Busca a venda pelo protocolo ou pedido_id
