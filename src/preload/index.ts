@@ -26,7 +26,9 @@ contextBridge.exposeInMainWorld('pdv', {
     getOpenOrders: () => ipcRenderer.invoke('db:getOpenOrders'),
 
     // Fiscal
-    emitDocument: (pedidoId: number) => ipcRenderer.invoke('fiscal:emit', pedidoId),
+    getFiscalEnvironment: () => ipcRenderer.invoke('fiscal:getEnvironment'),
+    emitDocument: (pedidoId: number, documento?: string) =>
+        ipcRenderer.invoke('fiscal:emit', pedidoId, documento),
     onFiscalCallback: (callback: (data: any) => void) =>
         ipcRenderer.on('fiscal:callback', (_e, data) => callback(data)),
 
