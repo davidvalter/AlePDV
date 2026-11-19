@@ -11,4 +11,5 @@ export interface PdvApi {
     emitDocument: (pedidoId: number) => Promise<{ success: boolean; error?: string }>;
     onFiscalCallback: (callback: (data: any) => void) => void;
     printCupom: (pedidoId: number) => Promise<{ success: boolean; error?: string }>;
+    openLogFile: () => Promise<{ success: boolean; error?: string }>;
 }
