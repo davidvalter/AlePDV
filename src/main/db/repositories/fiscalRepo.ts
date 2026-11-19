@@ -10,10 +10,10 @@ export const fiscalRepo = {
         return (result as any).insertId;
     },
 
-    async marcarEnviado(vendaId: number): Promise<void> {
+    async marcarEnviado(vendaId: number, alenfeId: number): Promise<void> {
         await getPool().execute(
-            `UPDATE VendasNFCE SET Status = 'ENVIADA', AtualizadoEm = NOW() WHERE Id = ?`,
-            [vendaId]
+            `UPDATE VendasNFCE SET Status = 'ENVIADA', Protocolo = ?, AtualizadoEm = NOW() WHERE Id = ?`,
+            [`ALENFE:${alenfeId}`, vendaId]
         );
     },
 
