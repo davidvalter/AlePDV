@@ -1,4 +1,5 @@
-import { ipcMain } from 'electron';
+import { ipcMain, shell } from 'electron';
+import { getLogFilePath, logger } from '../utils/logger';
 import { isConfigured, getStore } from '../config/store';
 import { testConnection } from '../db/connection';
 import { usuarioRepo } from '../db/repositories/usuarioRepo';
@@ -104,16 +105,40 @@ export function registerIpcHandlers() {
     });
 
     ipcMain.handle('db:closeOrder', async (_, pedidoId: number, formaPagamento: string) => {
+        logger.info('order.payment.started', { pedidoId, formaPagamento });
         try {
             const pedido = await pedidoRepo.getById(pedidoId);
+            if (!pedido) {
+                throw new Error(`Pedido #${pedidoId} não encontrado para finalização.`);
+            }
+
             await pedidoRepo.fechar(pedidoId, null);
             await pagamentoRepo.registrar({
                 pedidoId,
                 formaPagamento,
-                valor: pedido.ValorTotal,
+                valor: Number(pedido.ValorTotal),
+            });
+            logger.info('order.payment.completed', {
+                pedidoId,
+                formaPagamento,
+                valor: Number(pedido.ValorTotal),
             });
             return { success: true };
-        } catch (e: any) { return { success: false, error: e.message }; }
+        } catch (error: any) {
+            logger.error('order.payment.failed', error, { pedidoId, formaPagamento });
+            return { success: false, error: error?.message ?? 'Erro ao registrar pagamento.' };
+        }
+    });
+
+    ipcMain.handle('system:openLogFile', async () => {
+        const filePath = getLogFilePath();
+        logger.info('logs.open_requested');
+        const error = await shell.openPath(filePath);
+        if (error) {
+            logger.error('logs.open_failed', new Error(error));
+            return { success: false, error };
+        }
+        return { success: true };
     });
 
     ipcMain.handle('db:getOpenOrders', async () => {
