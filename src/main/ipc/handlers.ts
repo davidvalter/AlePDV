@@ -28,14 +28,21 @@ export function registerIpcHandlers() {
         return true;
     });
 
-    ipcMain.handle('config:testConnection', () => testConnection());
+    ipcMain.handle('config:testConnection', async () => {
+        logger.info('config.database_test.started');
+        const success = await testConnection();
+        logger.info('config.database_test.completed', { success });
+        return success;
+    });
 
     // ── Autenticação ──
     ipcMain.handle('auth:login', async (_, username: string, senha: string) => {
         try {
             const user = await usuarioRepo.login(username, senha);
+            logger.info('auth.login.completed', { success: Boolean(user) });
             return user ? { success: true, user } : { success: false, error: 'Credenciais inválidas' };
         } catch (error: any) {
+            logger.error('auth.login.failed', error);
             return { success: false, error: error.message };
         }
     });
@@ -72,8 +79,10 @@ export function registerIpcHandlers() {
                 return { ...p, Imagem: imagemUrl };
             });
 
+            logger.info('catalog.load.completed', { itemCount: data.length, imageCount: data.filter((item: any) => Boolean(item.Imagem)).length });
             return { success: true, data };
         } catch (e: any) {
+            logger.error('catalog.load.failed', e);
             return { success: false, error: e.message };
         }
     });
@@ -85,18 +94,39 @@ export function registerIpcHandlers() {
 
     // ── Pedidos ──
     ipcMain.handle('db:createOrder', async (_, data) => {
-        try { return { success: true, data: await pedidoRepo.create(data) }; }
-        catch (e: any) { return { success: false, error: e.message }; }
+        logger.info('order.create.started', { tipo: data.tipo, responsavelId: data.responsavelId });
+        try {
+            const pedidoId = await pedidoRepo.create(data);
+            logger.info('order.create.completed', { pedidoId, tipo: data.tipo });
+            return { success: true, data: pedidoId };
+        } catch (error: any) {
+            logger.error('order.create.failed', error, { tipo: data.tipo });
+            return { success: false, error: error.message };
+        }
     });
 
     ipcMain.handle('db:addItem', async (_, item) => {
-        try { return { success: true, data: await pedidoRepo.addItem(item) }; }
-        catch (e: any) { return { success: false, error: e.message }; }
+        logger.info('order.item_add.started', { pedidoId: item.pedidoId, cardapioId: item.cardapioId, quantidade: item.quantidade });
+        try {
+            const itemId = await pedidoRepo.addItem(item);
+            logger.info('order.item_add.completed', { pedidoId: item.pedidoId, itemId });
+            return { success: true, data: itemId };
+        } catch (error: any) {
+            logger.error('order.item_add.failed', error, { pedidoId: item.pedidoId, cardapioId: item.cardapioId });
+            return { success: false, error: error.message };
+        }
     });
 
     ipcMain.handle('db:removeItem', async (_, itemId: number, pedidoId: number) => {
-        try { await pedidoRepo.removeItem(itemId, pedidoId); return { success: true }; }
-        catch (e: any) { return { success: false, error: e.message }; }
+        logger.info('order.item_remove.started', { pedidoId, itemId });
+        try {
+            await pedidoRepo.removeItem(itemId, pedidoId);
+            logger.info('order.item_remove.completed', { pedidoId, itemId });
+            return { success: true };
+        } catch (error: any) {
+            logger.error('order.item_remove.failed', error, { pedidoId, itemId });
+            return { success: false, error: error.message };
+        }
     });
 
     ipcMain.handle('db:getOrderItens', async (_, pedidoId: number) => {
@@ -153,7 +183,11 @@ export function registerIpcHandlers() {
 
     // ── Impressão ──
     ipcMain.handle('printer:cupom', async (_, pedidoId: number) => {
-        return printer.printCupom(pedidoId);
+        logger.info('printer.cupom.started', { pedidoId });
+        const result = await printer.printCupom(pedidoId);
+        if (result.success) logger.info('printer.cupom.completed', { pedidoId });
+        else logger.warn('printer.cupom.failed', { pedidoId, error: result.error });
+        return result;
     });
 
     // ── Caixa ──
