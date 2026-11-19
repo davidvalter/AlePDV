@@ -1,4 +1,3 @@
-import os from 'os';
 import { pedidoRepo } from '../db/repositories/pedidoRepo';
 import { fiscalRepo } from '../db/repositories/fiscalRepo';
 import { empresaRepo } from '../db/repositories/empresaRepo';
