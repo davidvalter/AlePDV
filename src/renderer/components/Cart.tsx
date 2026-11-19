@@ -113,6 +113,10 @@ export function Cart() {
                     <div className="w-full py-4 rounded-xl bg-emerald-900/40 text-emerald-200 text-center text-sm border border-emerald-700">
                         Pagamento registrado. Aguardando retorno fiscal do ALENFE.
                     </div>
+                ) : paymentRecorded && fiscalStatus === 'authorized' ? (
+                    <div className="w-full py-4 rounded-xl bg-emerald-900/40 text-emerald-200 text-center text-sm border border-emerald-700">
+                        NFC-e autorizada. Preparando o próximo pedido...
+                    </div>
                 ) : paymentRecorded && fiscalStatus === 'rejected' ? (
                     <button
                         onClick={() => handleFinalizar('')}
