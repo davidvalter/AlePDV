@@ -1,8 +1,9 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import { join } from 'path';
 import { initStore } from './config/store';
 import { registerIpcHandlers } from './ipc/handlers';
 import { startWebhookServer } from './fiscal/webhookServer';
+import { getLogFilePath, logger } from './utils/logger';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -28,10 +29,17 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  logger.info('app.started', {
+    version: app.getVersion(),
+    platform: process.platform,
+    logFile: getLogFilePath(),
+  });
   initStore();
   registerIpcHandlers();
   startWebhookServer(3010);
   createWindow();
+}).catch((error) => {
+  logger.error('app.startup.failed', error);
 });
 
 app.on('window-all-closed', () => {
