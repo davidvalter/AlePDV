@@ -72,7 +72,9 @@ export function PosTerminal() {
       <Cart />
 
       {/* Modal fiscal */}
-      {showFiscalModal && <FiscalStatusModal status={fiscalStatus} />}
+      {showFiscalModal && (fiscalStatus === 'authorized' || fiscalStatus === 'rejected') && (
+        <FiscalStatusModal status={fiscalStatus} />
+      )}
     </div>
   );
 }
