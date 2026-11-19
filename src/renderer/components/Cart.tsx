@@ -12,12 +12,25 @@ export function Cart() {
     const { cart, total, removeFromCart, finalizar, fiscalStatus, clear } = useOrderStore();
     const [showPayment, setShowPayment] = useState(false);
     const [processing, setProcessing] = useState(false);
+    const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
     const handleFinalizar = async (forma: string) => {
         setProcessing(true);
         setShowPayment(false);
-        await finalizar(forma);
-        setProcessing(false);
+        setFeedback(null);
+        try {
+            const result = await finalizar(forma);
+            setFeedback(result.success
+                ? { type: 'success', message: result.message || 'Pedido enviado para emissão fiscal.' }
+                : { type: 'error', message: result.error || 'Não foi possível finalizar o pedido.' });
+        } catch (error: any) {
+            setFeedback({
+                type: 'error',
+                message: error?.message || 'Ocorreu um erro inesperado ao finalizar o pedido.',
+            });
+        } finally {
+            setProcessing(false);
+        }
     };
 
     return (
@@ -73,11 +86,23 @@ export function Cart() {
                     <span className="text-olive-400">R$ {total.toFixed(2)}</span>
                 </div>
 
+                {feedback && (
+                    <div
+                        role={feedback.type === 'error' ? 'alert' : 'status'}
+                        aria-live="polite"
+                        className={`mb-3 rounded-xl px-4 py-3 text-sm ${feedback.type === 'error'
+                            ? 'bg-red-900/40 text-red-200 border border-red-700'
+                            : 'bg-emerald-900/40 text-emerald-200 border border-emerald-700'}`}
+                    >
+                        {feedback.message}
+                    </div>
+                )}
+
                 {processing ? (
                     <div className="flex items-center justify-center py-4">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-olive-400" />
                         <span className="ml-3 text-sm">
-                            {fiscalStatus === 'processing' ? 'Emitindo NFC-e...' : 'Processando...'}
+                            {fiscalStatus === 'processing' ? 'Finalizando pedido e enviando NFC-e...' : 'Processando...'}
                         </span>
                     </div>
                 ) : showPayment ? (
