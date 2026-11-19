@@ -18,11 +18,13 @@ export const empresaRepo = {
 
   async getAlenfeConfig(): Promise<{ url: string; apiKey: string }> {
     const [rows] = await getPool().execute(
-      `SELECT Chave, Valor FROM Configuracoes WHERE Chave IN ('alenfe_url', 'alenfe_api_key')`
+      `SELECT Chave, Valor FROM Configuracoes WHERE LOWER(Chave) IN ('alenfe_url', 'alenfe_api_key')`
     );
     const config: Record<string, string> = {};
     (rows as any[]).forEach((r) => {
-      if (r.Valor) config[r.Chave] = r.Valor;
+      const chave = String(r.Chave ?? '').trim().toLowerCase();
+      const valor = String(r.Valor ?? '').trim();
+      if (chave && valor) config[chave] = valor;
     });
     return {
       url: config.alenfe_url || 'http://localhost:3001',
