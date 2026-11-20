@@ -15,6 +15,7 @@ export function Cart() {
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
     const [ambiente, setAmbiente] = useState<number | null>(null);
     const [ambienteErro, setAmbienteErro] = useState<string | null>(null);
+    const [cpfPadraoConfigurado, setCpfPadraoConfigurado] = useState(false);
     const [documentoCliente, setDocumentoCliente] = useState('');
 
     useEffect(() => {
@@ -28,9 +29,8 @@ export function Cart() {
                 return;
             }
             setAmbiente(value);
-            setAmbienteErro(value === 1 && !result?.cpfPadraoConfigurado
-                ? 'Configure ALENFE_CPF_PADRAO com um CPF/CNPJ válido nas Configurações do ALESYS para emitir em Produção.'
-                : null);
+            setCpfPadraoConfigurado(Boolean(result?.cpfPadraoConfigurado));
+            setAmbienteErro(null);
         }).catch((error: any) => {
             if (!active) return;
             setAmbiente(null);
@@ -45,11 +45,20 @@ export function Cart() {
     }, [currentPedidoId]);
 
     const documentoNumerico = documentoCliente.replace(/\D/g, '');
+    const documentoInformado = documentoNumerico.length > 0;
     const documentoValido = documentoNumerico.length === 11 || documentoNumerico.length === 14;
 
     const handleFinalizar = async (forma: string) => {
         if (ambiente === 2 && !documentoValido) {
             setFeedback({ type: 'error', message: 'Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) para emitir em Homologação.' });
+            return;
+        }
+        if (ambiente === 1 && documentoInformado && !documentoValido) {
+            setFeedback({ type: 'error', message: 'O CPF/CNPJ informado deve ter 11 ou 14 dígitos.' });
+            return;
+        }
+        if (ambiente === 1 && !documentoInformado && !cpfPadraoConfigurado) {
+            setFeedback({ type: 'error', message: 'Informe o CPF/CNPJ do cliente ou configure ALENFE_CPF_PADRAO nas Configurações do ALESYS.' });
             return;
         }
         if (ambiente !== 1 && ambiente !== 2) {
@@ -61,7 +70,7 @@ export function Cart() {
         setShowPayment(false);
         setFeedback(null);
         try {
-            const result = await finalizar(forma, ambiente === 2 ? documentoNumerico : undefined);
+            const result = await finalizar(forma, documentoInformado ? documentoNumerico : undefined);
             setFeedback(result.success
                 ? { type: 'success', message: result.message || 'Pedido enviado para emissão fiscal.' }
                 : { type: 'error', message: result.error || 'Não foi possível finalizar o pedido.' });
@@ -78,7 +87,9 @@ export function Cart() {
     const pagamentoBloqueado = processing
         || ambienteErro !== null
         || ambiente === null
-        || (ambiente === 2 && !documentoValido);
+        || (ambiente === 2 && !documentoValido)
+        || (ambiente === 1 && documentoInformado && !documentoValido)
+        || (ambiente === 1 && !documentoInformado && !cpfPadraoConfigurado);
 
     return (
         <div className="w-96 bg-rustic-900 text-cream-50 p-6 flex flex-col">
@@ -171,24 +182,26 @@ export function Cart() {
                         <p className="mb-2 text-xs text-wood-300">
                             Ambiente fiscal: <strong>{ambiente === 1 ? 'Produção' : ambiente === 2 ? 'Homologação' : 'indisponível'}</strong>
                         </p>
-                        {ambiente === 2 && (
-                            <div className="mb-3">
-                                <label htmlFor="documento-cliente" className="block text-xs font-semibold mb-1.5">
-                                    CPF ou CNPJ do consumidor
-                                </label>
-                                <input
-                                    id="documento-cliente"
-                                    inputMode="numeric"
-                                    autoComplete="off"
-                                    maxLength={18}
-                                    value={documentoCliente}
-                                    onChange={(event) => setDocumentoCliente(event.target.value.replace(/[^\d.\-/]/g, ''))}
-                                    placeholder="Digite o CPF ou CNPJ"
-                                    className="w-full px-3 py-2 rounded-lg bg-rustic-800 border border-rustic-700 text-cream-50 placeholder:text-wood-500 focus:outline-none focus:border-olive-400"
-                                />
-                                <p className="mt-1 text-xs text-wood-400">Homologação exige CPF (11 dígitos) ou CNPJ (14 dígitos).</p>
-                            </div>
-                        )}
+                        <div className="mb-3">
+                            <label htmlFor="documento-cliente" className="block text-xs font-semibold mb-1.5">
+                                CPF ou CNPJ do consumidor {ambiente === 1 ? '(opcional)' : ''}
+                            </label>
+                            <input
+                                id="documento-cliente"
+                                inputMode="numeric"
+                                autoComplete="off"
+                                maxLength={18}
+                                value={documentoCliente}
+                                onChange={(event) => setDocumentoCliente(event.target.value.replace(/[^\d.\-/]/g, ''))}
+                                placeholder="Digite o CPF ou CNPJ"
+                                className="w-full px-3 py-2 rounded-lg bg-rustic-800 border border-rustic-700 text-cream-50 placeholder:text-wood-500 focus:outline-none focus:border-olive-400"
+                            />
+                            <p className="mt-1 text-xs text-wood-400">
+                                {ambiente === 2
+                                    ? 'Homologação exige CPF (11 dígitos) ou CNPJ (14 dígitos).'
+                                    : 'Em Produção, se deixar vazio, será usado o documento padrão das Configurações do ALESYS.'}
+                            </p>
+                        </div>
                         {ambienteErro && (
                             <p className="mb-3 text-xs text-red-300">{ambienteErro}</p>
                         )}
