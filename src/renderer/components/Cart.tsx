@@ -168,7 +168,7 @@ export function Cart() {
                     </div>
                 ) : paymentRecorded && fiscalStatus === 'authorized' ? (
                     <div className="w-full py-4 rounded-xl bg-emerald-900/40 text-emerald-200 text-center text-sm border border-emerald-700">
-                        NFC-e autorizada. Preparando o próximo pedido...
+                        NFC-e autorizada. Cupom disponível na tela para impressão.
                     </div>
                 ) : paymentRecorded && fiscalStatus === 'rejected' ? (
                     <button
