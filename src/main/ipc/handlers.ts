@@ -182,7 +182,7 @@ export function registerIpcHandlers() {
     ipcMain.handle('fiscal:getEnvironment', async () => {
         try {
             const { ambiente, cpfPadrao } = await empresaRepo.getAlenfeConfig();
-            return { success: true, ambiente, cpfPadraoConfigurado: /^\\d{11}$|^\\d{14}$/.test(cpfPadrao) };
+            return { success: true, ambiente, cpfPadraoConfigurado: /^\d{11}$|^\d{14}$/.test(cpfPadrao) };
         } catch (error: any) {
             logger.error('fiscal.environment.read_failed', error);
             return { success: false, error: error?.message ?? 'Não foi possível ler ALENFE_AMBIENTE.' };
