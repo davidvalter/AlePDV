@@ -94,22 +94,24 @@ async function acompanharEmissao(pedidoId: number, vendaId: number, alenfeId: nu
             const status = String(nota?.status ?? '').toUpperCase();
             if (!estadosFinais.has(status)) continue;
 
-            const dadosEmpresa = await empresaRepo.getDadosEmitente();
-            const recibo = montarCupom(pedidoId, status, payload, nota, dadosEmpresa);
+            const podeImprimir = status === 'AUTORIZADA' || status === 'CONTINGENCIA';
+            const dadosEmpresa = podeImprimir ? await empresaRepo.getDadosEmitente() : null;
+            const recibo = podeImprimir ? montarCupom(pedidoId, status, payload, nota, dadosEmpresa) : null;
+            const motivo = nota?.motivoRejeicao ?? nota?.motivoContingencia ?? '';
             await fiscalRepo.atualizarStatus(vendaId, {
                 status,
-                chaveAcesso: recibo.chaveAcesso || null,
-                protocolo: recibo.protocolo || null,
-                xmlProc: recibo.xmlImpressao || null,
-                motivoRejeicao: recibo.motivo || null,
+                chaveAcesso: recibo?.chaveAcesso || nota?.chaveAcesso || null,
+                protocolo: recibo?.protocolo || nota?.protocolo || null,
+                xmlProc: recibo?.xmlImpressao || null,
+                motivoRejeicao: motivo || null,
             });
             const win = BrowserWindow.getAllWindows()[0];
             if (win && !win.isDestroyed()) {
                 win.webContents.send('fiscal:callback', {
                     pedidoId,
                     status,
-                    motivo_rejeicao: recibo.motivo,
-                    receipt: recibo,
+                    motivo_rejeicao: motivo,
+                    ...(recibo ? { receipt: recibo } : {}),
                 });
             }
             logger.info('fiscal.status.received', { pedidoId, vendaId, alenfeId, status, tentativa });
