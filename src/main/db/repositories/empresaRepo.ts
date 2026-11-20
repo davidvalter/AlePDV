@@ -61,10 +61,10 @@ export const empresaRepo = {
     });
 
     return {
-      url: (config.alenfe_url || 'http://localhost:3001').replace(/\\/+$/, ''),
+      url: (config.alenfe_url || 'http://localhost:3001').replace(/\/+$/, ''),
       apiKey: config.alenfe_api_key || '',
       ambiente: config.alenfe_ambiente || null,
-      cpfPadrao: (config.alenfe_cpf_padrao || '').replace(/\\D/g, ''),
+      cpfPadrao: (config.alenfe_cpf_padrao || '').replace(/\D/g, ''),
       consumidorPadrao: config.alenfe_consumidor_padrao || 'CONSUMIDOR',
       nomeHomologacao: config.alenfe_nome_homologacao || 'NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL',
       descricaoHomologacao: config.alenfe_descricao_homologacao || 'NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL',
@@ -74,7 +74,7 @@ export const empresaRepo = {
         bairro: config.alenfe_endereco_bairro || 'NAO INFORMADO',
         cidade: config.alenfe_endereco_cidade || 'NAO INFORMADO',
         uf: (config.alenfe_endereco_uf || 'DF').toUpperCase(),
-        cep: (config.alenfe_endereco_cep || '00000000').replace(/\\D/g, ''),
+        cep: (config.alenfe_endereco_cep || '00000000').replace(/\D/g, ''),
       },
     };
   },
