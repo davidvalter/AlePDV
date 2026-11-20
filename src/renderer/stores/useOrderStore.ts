@@ -10,7 +10,7 @@ interface OrderState {
   paymentRecorded: boolean;
   customerDocument: string | null;
   finalizeError: string | null;
-  applyFiscalCallback: (status: 'AUTORIZADA' | 'REJEITADA', reason?: string) => void;
+  applyFiscalCallback: (status: 'AUTORIZADA' | 'REJEITADA' | 'CONTINGENCIA' | 'ERRO' | 'CANCELADA', reason?: string) => void;
   setTipo: (tipo: 'mesa' | 'balcao' | 'delivery') => void;
   setMesa: (mesa: string | null) => void;
   createOrder: (responsavelId: number) => Promise<void>;
@@ -38,8 +38,10 @@ export const useOrderStore = create<OrderState>((set, get) => ({
   finalizeError: null,
 
   applyFiscalCallback: (status, reason) => set({
-    fiscalStatus: status === 'AUTORIZADA' ? 'authorized' : 'rejected',
-    finalizeError: status === 'REJEITADA' ? (reason || 'NFC-e rejeitada pelo serviço fiscal. Consulte o log para detalhes.') : null,
+    fiscalStatus: status === 'AUTORIZADA' || status === 'CONTINGENCIA' ? 'authorized' : 'rejected',
+    finalizeError: ['REJEITADA', 'ERRO', 'CANCELADA'].includes(status)
+      ? (reason || 'A emissão fiscal não foi autorizada. Consulte o log para detalhes.')
+      : null,
   }),
 
   setTipo: (tipo) => set({ tipo }),
