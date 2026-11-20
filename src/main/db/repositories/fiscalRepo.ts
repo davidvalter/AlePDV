@@ -41,7 +41,7 @@ export const fiscalRepo = {
             const pedidoId = (venda as any[])[0]?.PedidoId;
 
             if (pedidoId) {
-                const statusNFe = dados.status === 'AUTORIZADA' ? 'emitida'
+                const statusNFe = (dados.status === 'AUTORIZADA' || dados.status === 'CONTINGENCIA') ? 'emitida'
                     : (dados.status === 'REJEITADA' || dados.status === 'ERRO') ? 'erro' : 'emitindo';
                 await conn.execute(
                     `UPDATE Pedidos SET StatusNFe = ?, ChaveNFe = ?, ProtocoloNFe = ?,
