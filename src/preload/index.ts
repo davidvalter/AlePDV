@@ -29,8 +29,11 @@ contextBridge.exposeInMainWorld('pdv', {
     getFiscalEnvironment: () => ipcRenderer.invoke('fiscal:getEnvironment'),
     emitDocument: (pedidoId: number, documento?: string) =>
         ipcRenderer.invoke('fiscal:emit', pedidoId, documento),
-    onFiscalCallback: (callback: (data: any) => void) =>
-        ipcRenderer.on('fiscal:callback', (_e, data) => callback(data)),
+    onFiscalCallback: (callback: (data: any) => void) => {
+        const listener = (_e: Electron.IpcRendererEvent, data: any) => callback(data);
+        ipcRenderer.on('fiscal:callback', listener);
+        return () => ipcRenderer.removeListener('fiscal:callback', listener);
+    },
 
     // Impressão
     printCupom: (pedidoId: number) => ipcRenderer.invoke('printer:cupom', pedidoId),
