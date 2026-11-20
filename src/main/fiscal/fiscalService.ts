@@ -4,6 +4,7 @@ import { empresaRepo } from '../db/repositories/empresaRepo';
 import { pagamentoRepo } from '../db/repositories/pagamentoRepo';
 import { alenfeClient } from './alenfeClient';
 import { logger } from '../utils/logger';
+import { BrowserWindow } from 'electron';
 
 const FORMA_PAGAMENTO_ALENFE: Record<string, string> = {
     dinheiro: '01',
@@ -13,6 +14,114 @@ const FORMA_PAGAMENTO_ALENFE: Record<string, string> = {
 };
 
 const documentoValido = (documento: string) => /^\d{11}$|^\d{14}$/.test(documento);
+
+const rotulosPagamento: Record<string, string> = {
+    '01': 'Dinheiro',
+    '03': 'Cartão de Crédito',
+    '04': 'Cartão de Débito',
+    '17': 'PIX',
+};
+
+function valorTag(xml: string, tag: string): string | null {
+    if (!xml) return null;
+    const match = xml.match(new RegExp(`<(?:[\\w.-]+:)?${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/(?:[\\w.-]+:)?${tag}>`, 'i'));
+    if (!match) return null;
+    return match[1]
+        .replace(/<!\\[CDATA\\[|\\]\\]>/g, '')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        .trim();
+}
+
+function valorEmpresa(empresa: any, nomes: string[]): string {
+    const normalizados = new Set(nomes.map((nome) => nome.toLowerCase()));
+    const chave = Object.keys(empresa ?? {}).find((key) => normalizados.has(key.toLowerCase()));
+    return chave ? String(empresa[chave] ?? '') : '';
+}
+
+function montarCupom(pedidoId: number, status: string, payload: any, nota: any, empresa: any) {
+    const xml = String(nota.xmlImpressao ?? '');
+    const itens = Array.isArray(payload?.itens) ? payload.itens : [];
+    const pagamentos = Array.isArray(payload?.pagamentos) ? payload.pagamentos : [];
+    const total = Number(nota.valorNota ?? itens.reduce((soma: number, item: any) => soma + Number(item.valorTotal ?? 0), 0));
+
+    return {
+        pedidoId,
+        status,
+        nfceId: nota.id,
+        numero: nota.numero,
+        serie: nota.serie,
+        ambiente: valorTag(xml, 'tpAmb') ?? nota.ambiente ?? null,
+        dataEmissao: nota.dataAutorizacao ?? nota.dataEmissao ?? valorTag(xml, 'dhEmi'),
+        chaveAcesso: nota.chaveAcesso ?? valorTag(xml, 'chNFe') ?? '',
+        protocolo: nota.protocolo ?? valorTag(xml, 'nProt') ?? '',
+        motivo: nota.motivoRejeicao ?? nota.motivoContingencia ?? '',
+        xmlImpressao: xml,
+        qrCode: valorTag(xml, 'qrCode'),
+        urlChave: valorTag(xml, 'urlChave'),
+        emitente: {
+            razaoSocial: valorEmpresa(empresa, ['RazaoSocial', 'Razao_Social']),
+            nomeFantasia: valorEmpresa(empresa, ['NomeFantasia', 'Nome_Fantasia']),
+            cnpj: valorEmpresa(empresa, ['Cnpj', 'CNPJ']),
+            ie: valorEmpresa(empresa, ['InscricaoEstadual', 'IE']),
+            logradouro: valorEmpresa(empresa, ['Logradouro', 'Endereco']),
+            numero: valorEmpresa(empresa, ['Numero']),
+            bairro: valorEmpresa(empresa, ['Bairro']),
+            cidade: valorEmpresa(empresa, ['Cidade']),
+            uf: valorEmpresa(empresa, ['Uf', 'UF']),
+            cep: valorEmpresa(empresa, ['Cep', 'CEP']),
+        },
+        itens,
+        pagamentos: pagamentos.map((pagamento: any) => ({
+            ...pagamento,
+            descricao: rotulosPagamento[String(pagamento.formaPagamento)] ?? 'Outros',
+        })),
+        totais: { vProd: total, vDesc: 0, vNF: total },
+        troco: 0,
+    };
+}
+
+async function acompanharEmissao(pedidoId: number, vendaId: number, alenfeId: number, payload: any) {
+    const estadosFinais = new Set(['AUTORIZADA', 'REJEITADA', 'CONTINGENCIA', 'ERRO', 'CANCELADA']);
+    for (let tentativa = 1; tentativa <= 60; tentativa++) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        try {
+            const resposta = await alenfeClient.consultarStatus(alenfeId);
+            const nota = resposta?.nota ?? resposta?.data?.nota ?? resposta?.data ?? resposta;
+            const status = String(nota?.status ?? '').toUpperCase();
+            if (!estadosFinais.has(status)) continue;
+
+            const dadosEmpresa = await empresaRepo.getDadosEmitente();
+            const recibo = montarCupom(pedidoId, status, payload, nota, dadosEmpresa);
+            await fiscalRepo.atualizarStatus(vendaId, {
+                status,
+                chaveAcesso: recibo.chaveAcesso || null,
+                protocolo: recibo.protocolo || null,
+                xmlProc: recibo.xmlImpressao || null,
+                motivoRejeicao: recibo.motivo || null,
+            });
+            const win = BrowserWindow.getAllWindows()[0];
+            if (win && !win.isDestroyed()) {
+                win.webContents.send('fiscal:callback', {
+                    pedidoId,
+                    status,
+                    motivo_rejeicao: recibo.motivo,
+                    receipt: recibo,
+                });
+            }
+            logger.info('fiscal.status.received', { pedidoId, vendaId, alenfeId, status, tentativa });
+            return;
+        } catch (error: any) {
+            if (tentativa === 1 || tentativa % 10 === 0) {
+                logger.warn('fiscal.status.poll_failed', { pedidoId, alenfeId, tentativa, error: error?.message });
+            }
+        }
+    }
+    logger.warn('fiscal.status.poll_timeout', { pedidoId, vendaId, alenfeId });
+}
 
 export const fiscalService = {
     async emitir(
@@ -125,6 +234,7 @@ export const fiscalService = {
                 alenfeId: resposta.id,
                 ambiente,
             });
+            void acompanharEmissao(pedidoId, vendaId, resposta.id, payload);
             return { success: true, alenfeId: resposta.id };
         } catch (error: any) {
             logger.error('fiscal.emit.failed', error, { pedidoId, vendaId });
