@@ -28,7 +28,9 @@ export function Cart() {
                 return;
             }
             setAmbiente(value);
-            setAmbienteErro(null);
+            setAmbienteErro(value === 1 && !result?.cpfPadraoConfigurado
+                ? 'Configure ALENFE_CPF_PADRAO com um CPF/CNPJ válido nas Configurações do ALESYS para emitir em Produção.'
+                : null);
         }).catch((error: any) => {
             if (!active) return;
             setAmbiente(null);
