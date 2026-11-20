@@ -27,7 +27,7 @@ export interface PdvApi {
     getOpenOrders: () => Promise<ApiResult<any[]>>;
 
     // Fiscal
-    getFiscalEnvironment: () => Promise<{ success: boolean; ambiente?: string | null; error?: string }>;
+    getFiscalEnvironment: () => Promise<{ success: boolean; ambiente?: string | null; cpfPadraoConfigurado?: boolean; error?: string }>;
     emitDocument: (pedidoId: number, documento?: string) => Promise<{
         success: boolean;
         alenfeId?: number;
