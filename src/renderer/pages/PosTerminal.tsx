@@ -6,6 +6,7 @@ import { ProductCard } from '../components/ProductCard';
 import { Cart } from '../components/Cart';
 import { CategoryBar } from '../components/CategoryBar';
 import { FiscalStatusModal } from '../components/FiscalStatusModal';
+import { NfceReceiptModal } from '../components/NfceReceiptModal';
 
 export function PosTerminal() {
   const { products, categories, selectedCategory, loadProducts, selectCategory, filtered } =
@@ -13,41 +14,46 @@ export function PosTerminal() {
   const { createOrder, currentPedidoId, addToCart, fiscalStatus, clear, applyFiscalCallback, paymentRecorded } = useOrderStore();
   const { user } = useAuthStore();
   const [showFiscalModal, setShowFiscalModal] = useState(false);
+  const [receipt, setReceipt] = useState<any | null>(null);
 
   useEffect(() => {
     loadProducts();
-    // Cria um pedido automático ao entrar no PDV (tipo balcão)
     if (!currentPedidoId && user) {
       createOrder(user.Id);
     }
   }, []);
 
-  // Listener do webhook fiscal
   useEffect(() => {
-    window.pdv.onFiscalCallback((data) => {
-      if (data.status === 'AUTORIZADA') {
-        applyFiscalCallback('AUTORIZADA');
+    const unsubscribe = window.pdv.onFiscalCallback((data) => {
+      if (data?.pedidoId && data.pedidoId !== currentPedidoId) return;
+
+      if (data?.receipt) {
+        applyFiscalCallback(data.status, data.motivo_rejeicao);
+        setReceipt(data.receipt);
+        return;
+      }
+
+      if (data?.status === 'REJEITADA' || data?.status === 'ERRO' || data?.status === 'CANCELADA') {
+        applyFiscalCallback(data.status, data.motivo_rejeicao);
         setShowFiscalModal(true);
-        setTimeout(() => {
-          clear();
-          setShowFiscalModal(false);
-          if (user) createOrder(user.Id);
-        }, 2000);
-      } else if (data.status === 'REJEITADA') {
-        applyFiscalCallback('REJEITADA', data.motivo_rejeicao);
-        setShowFiscalModal(true);
-        setTimeout(() => setShowFiscalModal(false), 3000);
+        window.setTimeout(() => setShowFiscalModal(false), 3000);
       }
     });
-  }, []);
+    return unsubscribe;
+  }, [currentPedidoId, applyFiscalCallback]);
 
   const handleAddToCart = async (product: any) => {
     await addToCart(product);
   };
 
+  const handleCloseReceipt = async () => {
+    setReceipt(null);
+    clear();
+    if (user) await createOrder(user.Id);
+  };
+
   return (
     <div className="flex h-full">
-      {/* Área de produtos */}
       <div className="flex-1 flex flex-col p-4 overflow-hidden">
         <CategoryBar
           categories={categories}
@@ -69,12 +75,13 @@ export function PosTerminal() {
         </div>
       </div>
 
-      {/* Carrinho */}
       <Cart />
 
-      {/* Modal fiscal */}
-      {showFiscalModal && (fiscalStatus === 'authorized' || fiscalStatus === 'rejected') && (
+      {showFiscalModal && fiscalStatus === 'rejected' && (
         <FiscalStatusModal status={fiscalStatus} />
+      )}
+      {receipt && (
+        <NfceReceiptModal receipt={receipt} onClose={handleCloseReceipt} />
       )}
     </div>
   );
