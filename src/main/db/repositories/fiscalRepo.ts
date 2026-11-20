@@ -42,10 +42,10 @@ export const fiscalRepo = {
 
             if (pedidoId) {
                 const statusNFe = (dados.status === 'AUTORIZADA' || dados.status === 'CONTINGENCIA') ? 'emitida'
-                    : (dados.status === 'REJEITADA' || dados.status === 'ERRO') ? 'erro' : 'emitindo';
+                    : (['REJEITADA', 'ERRO', 'CANCELADA'].includes(dados.status)) ? 'erro' : 'emitindo';
                 await conn.execute(
                     `UPDATE Pedidos SET StatusNFe = ?, ChaveNFe = ?, ProtocoloNFe = ?,
-           DataEmissaoNFe = CASE WHEN ? = 'AUTORIZADA' THEN NOW() ELSE DataEmissaoNFe END
+           DataEmissaoNFe = CASE WHEN ? IN ('AUTORIZADA', 'CONTINGENCIA') THEN NOW() ELSE DataEmissaoNFe END
            WHERE Id = ?`,
                     [statusNFe, dados.chaveAcesso ?? null, dados.protocolo ?? null, dados.status, pedidoId]
                 );
