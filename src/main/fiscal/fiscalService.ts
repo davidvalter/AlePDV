@@ -33,9 +33,12 @@ export const fiscalService = {
             if (ambiente === 2 && !documentoValido(documentoInformado)) {
                 throw new Error('Em Homologação, informe um CPF (11 dígitos) ou CNPJ (14 dígitos) antes de finalizar.');
             }
-            const documentoFiscal = ambiente === 2 ? documentoInformado : config.cpfPadrao;
+            if (ambiente === 1 && documentoInformado && !documentoValido(documentoInformado)) {
+                throw new Error('O CPF/CNPJ informado deve ter 11 ou 14 dígitos.');
+            }
+            const documentoFiscal = documentoInformado || config.cpfPadrao;
             if (!documentoValido(documentoFiscal)) {
-                throw new Error('Configure ALENFE_CPF_PADRAO com CPF ou CNPJ válido nas Configurações do ALESYS para emitir em Produção.');
+                throw new Error('Informe um CPF/CNPJ válido do cliente ou configure ALENFE_CPF_PADRAO nas Configurações do ALESYS.');
             }
 
             const pedido = await pedidoRepo.getById(pedidoId);
