@@ -33,7 +33,7 @@ export interface PdvApi {
         alenfeId?: number;
         error?: string;
     }>;
-    onFiscalCallback: (callback: (data: any) => void) => void;
+    onFiscalCallback: (callback: (data: any) => void) => () => void;
 
     // Impressão
     printCupom: (pedidoId: number) => Promise<{ success: boolean; error?: string }>;
