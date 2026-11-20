@@ -86,7 +86,10 @@ function montarCupom(pedidoId: number, status: string, payload: any, nota: any, 
 
 async function acompanharEmissao(pedidoId: number, vendaId: number, alenfeId: number, payload: any) {
     const estadosFinais = new Set(['AUTORIZADA', 'REJEITADA', 'CONTINGENCIA', 'ERRO', 'CANCELADA']);
-    for (let tentativa = 1; tentativa <= 60; tentativa++) {
+    const prazoFinal = Date.now() + 120000;
+    let tentativa = 0;
+    while (Date.now() < prazoFinal) {
+        tentativa += 1;
         await new Promise((resolve) => setTimeout(resolve, 2000));
         try {
             const resposta = await alenfeClient.consultarStatus(alenfeId);
