@@ -27,7 +27,7 @@ function valorTag(xml: string, tag: string): string | null {
     const match = xml.match(new RegExp(`<(?:[\\w.-]+:)?${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/(?:[\\w.-]+:)?${tag}>`, 'i'));
     if (!match) return null;
     return match[1]
-        .replace(/<!\\[CDATA\\[|\\]\\]>/g, '')
+        .replace(/<!\[CDATA\[|\]\]>/g, '')
         .replace(/&amp;/g, '&')
         .replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>')
