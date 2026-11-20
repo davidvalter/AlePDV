@@ -12,6 +12,8 @@ const FORMA_PAGAMENTO_ALENFE: Record<string, string> = {
     pix: '17',
 };
 
+const documentoValido = (documento: string) => /^\\d{11}$|^\\d{14}$/.test(documento);
+
 export const fiscalService = {
     async emitir(
         pedidoId: number,
@@ -27,9 +29,13 @@ export const fiscalService = {
                 throw new Error('ALENFE_AMBIENTE ausente ou inválido. Use 1 para Produção ou 2 para Homologação.');
             }
 
-            const documento = String(documentoCliente ?? '').replace(/\D/g, '');
-            if (ambiente === 2 && !/^\d{11}$|^\d{14}$/.test(documento)) {
+            const documentoInformado = String(documentoCliente ?? '').replace(/\\D/g, '');
+            if (ambiente === 2 && !documentoValido(documentoInformado)) {
                 throw new Error('Em Homologação, informe um CPF (11 dígitos) ou CNPJ (14 dígitos) antes de finalizar.');
+            }
+            const documentoFiscal = ambiente === 2 ? documentoInformado : config.cpfPadrao;
+            if (!documentoValido(documentoFiscal)) {
+                throw new Error('Configure ALENFE_CPF_PADRAO com CPF ou CNPJ válido nas Configurações do ALESYS para emitir em Produção.');
             }
 
             const pedido = await pedidoRepo.getById(pedidoId);
@@ -42,33 +48,35 @@ export const fiscalService = {
                 throw new Error('O pedido não possui itens válidos para emissão');
             }
 
-            const itensNfce = itens.map((item: any) => {
-                const ncm = String(item.NCM ?? '').replace(/\D/g, '');
-                const cfop = String(item.CFOP ?? '5102').replace(/\D/g, '');
-                if (!/^\d{8}$/.test(ncm)) {
+            const itensNfce = itens.map((item: any, index: number) => {
+                const ncm = String(item.NCM ?? '').replace(/\\D/g, '');
+                const cfop = String(item.CFOP ?? '5102').replace(/\\D/g, '');
+                if (!/^\\d{8}$/.test(ncm)) {
                     throw new Error(`NCM inválido ou ausente no item ${item.CardapioNome ?? item.CardapioId}`);
                 }
-                if (!/^\d{4}$/.test(cfop)) {
+                if (!/^\\d{4}$/.test(cfop)) {
                     throw new Error(`CFOP inválido no item ${item.CardapioNome ?? item.CardapioId}`);
                 }
 
                 const quantidade = Number(item.Quantidade);
                 const valorUnitario = Number(item.ValorUnitario);
                 const valorTotal = Number((quantidade * valorUnitario).toFixed(2));
-                const cest = String(item.CEST ?? '').replace(/\D/g, '');
-                const csosn = String(item.CSOSN ?? '').replace(/\D/g, '');
+                const cest = String(item.CEST ?? '').replace(/\\D/g, '');
+                const csosn = String(item.CSOSN ?? '').replace(/\\D/g, '');
 
                 return {
                     codigo: String(item.CardapioId ?? ''),
-                    descricao: String(item.CardapioNome ?? ''),
+                    descricao: ambiente === 2 && index === 0
+                        ? config.descricaoHomologacao
+                        : String(item.CardapioNome ?? ''),
                     ncm,
                     cfop,
                     unidade: String(item.UnidadeMedida ?? 'UN'),
                     quantidade,
                     valorUnitario,
                     valorTotal,
-                    ...(cest && /^\d{7}$/.test(cest) ? { cest } : {}),
-                    ...(csosn && /^\d{3}$/.test(csosn) ? { csosn } : {}),
+                    ...(cest && /^\\d{7}$/.test(cest) ? { cest } : {}),
+                    ...(csosn && /^\\d{3}$/.test(csosn) ? { csosn } : {}),
                 };
             });
 
@@ -85,10 +93,11 @@ export const fiscalService = {
             });
 
             const payload = {
-                ambiente,
-                cliente: ambiente === 1
-                    ? { nome: 'CONSUMIDOR' }
-                    : { cpfCnpj: documento, nome: 'CONSUMIDOR' },
+                cliente: {
+                    cpfCnpj: documentoFiscal,
+                    nome: ambiente === 2 ? config.nomeHomologacao : config.consumidorPadrao,
+                    endereco: config.endereco,
+                },
                 itens: itensNfce,
                 pagamentos: pagamentosNfce,
             };
